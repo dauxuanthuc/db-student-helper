@@ -3,48 +3,261 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DB Student Helper - Tạo Database nhanh</title>
+    <title>DB Student Helper | Công cụ tạo Database Đồ án</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.5/dist/mermaid.min.js"></script>
+    <style>
+        :root { --primary: #2563eb; }
+        body { background-color: #f1f5f9; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        .sidebar { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); position: sticky; top: 20px; }
+        .sql-preview { background: #0f172a; color: #38bdf8; border-radius: 8px; font-family: 'Fira Code', 'Consolas', monospace; min-height: 550px; padding: 20px; white-space: pre-wrap; font-size: 13px; border: 1px solid #1e293b; overflow-x: auto; }
+        .nav-tabs .nav-link { font-weight: 600; color: #64748b; border: none; }
+        .nav-tabs .nav-link.active { color: var(--primary); border-bottom: 3px solid var(--primary); background: none; }
+        .mermaid-card { background: white; border-radius: 8px; padding: 20px; min-height: 500px; display: flex; justify-content: center; align-items: flex-start; border: 1px solid #e2e8f0; }
+        .btn-primary { background-color: var(--primary); border: none; }
+        .btn-primary:hover { background-color: #1d4ed8; }
+    </style>
 </head>
-<body class="bg-light">
+<body>
 
-<div class="container py-5">
-    <div class="text-center mb-5">
-        <h1 class="display-4 fw-bold text-primary">🎯 DB Student Helper</h1>
-        <p class="lead">Tạo SQL và dữ liệu mẫu trong 1 click (Dành cho SV HUTECH & IT)</p>
+<nav class="navbar navbar-dark bg-primary shadow-sm mb-4">
+    <div class="container">
+        <span class="navbar-brand fw-bold"><i class="fas fa-bolt me-2"></i> DB STUDENT HELPER</span>
+        <span class="text-white opacity-75 small">Phiên bản hỗ trợ SV HUTECH</span>
     </div>
+</nav>
 
+<div class="container-fluid px-4">
     <div class="row">
-        <div class="col-md-5">
-            <div class="card shadow-sm p-4">
-                <h5 class="mb-3">Cấu hình Database</h5>
-                <label class="form-label">Tên Database:</label>
-                <input type="text" id="dbName" class="form-control mb-3" placeholder="QL_SinhVien">
+        <div class="col-lg-3">
+            <div class="sidebar p-4 mb-4">
+                <h6 class="text-uppercase fw-bold text-muted small mb-3">Cấu hình Script</h6>
+                
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Tên Database</label>
+                    <input type="text" id="dbName" class="form-control" value="QL_SINH_VIEN">
+                </div>
 
-                <label class="form-label">Chọn mẫu đồ án:</label>
-                <select id="template" class="form-select mb-4">
-                    <option value="student">Quản lý Sinh viên (Cơ bản)</option>
-                    <option value="sales">Quản lý Bán hàng</option>
-                    <option value="library">Quản lý Thư viện</option>
-                </select>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Hệ quản trị CSDL</label>
+                    <select id="dbType" class="form-select">
+                        <option value="SQL Server">Microsoft SQL Server</option>
+                        <option value="MySQL">MySQL</option>
+                    </select>
+                </div>
 
-                <button onclick="generateSQL()" class="btn btn-primary w-100 fw-bold">🚀 SINH SQL NGAY</button>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Mẫu đồ án</label>
+                    <select id="template" class="form-select">
+                        <option value="student">🎓 Quản lý Sinh viên & Điểm</option>
+                        <option value="sales">🛒 Quản lý Bán hàng & Kho</option>
+                        <option value="library">📚 Quản lý Thư viện</option>
+                        <option value="cinema">🎬 Quản lý Rạp chiếu phim</option>
+                        <option value="hotel">🏨 Quản lý Khách sạn</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label small fw-bold">Số dòng dữ liệu test</label>
+                    <input type="number" id="rowCount" class="form-control" value="30" min="1" max="500">
+                </div>
+
+                <button onclick="handleGenerate()" class="btn btn-primary w-100 fw-bold py-2 mb-3 shadow-sm">
+                    🚀 SINH SQL & ERD
+                </button>
+                
+                <div class="row g-2">
+                    <div class="col-6">
+                        <button onclick="copySQL()" id="btnCopy" class="btn btn-outline-secondary w-100 btn-sm">
+                            <i class="fas fa-copy"></i> Copy SQL
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button onclick="downloadSQL()" class="btn btn-outline-primary w-100 btn-sm">
+                            <i class="fas fa-download"></i> Tải file
+                        </button>
+                    </div>
+                    <div class="col-12">
+                        <button onclick="downloadERDPng()" class="btn btn-outline-success w-100 btn-sm">
+                            <i class="fas fa-image"></i> Chụp Ảnh ERD (.png)
+                        </button>
+                    </div>
+                </div>
+
+                <hr class="my-3">
+                <h6 class="text-uppercase fw-bold text-primary small mb-3">🛠 Tùy chỉnh cấu trúc</h6>
+                <div id="tableList" class="mb-3"></div>
+
+                <button onclick="addNewTable()" class="btn btn-sm btn-outline-success w-100 mb-2">
+                    <i class="fas fa-plus"></i> Thêm bảng mới
+                </button>
+                <button onclick="resetToDefault()" class="btn btn-sm btn-link text-danger w-100">
+                    <i class="fas fa-undo"></i> Reset về mẫu gốc
+                </button>
+
+                <div class="p-3 border rounded bg-light mt-3">
+                    <h6 class="text-uppercase fw-bold text-dark small mb-3"><i class="fas fa-file-import me-2"></i>Dự án (JSON)</h6>
+                    <div class="d-grid gap-2">
+                        <button onclick="exportSchemaOnly()" class="btn btn-sm btn-outline-dark w-100">
+                            <i class="fas fa-file-code"></i> Xuất Schema Only
+                        </button>
+                        <button onclick="exportFullProject()" class="btn btn-sm btn-outline-dark w-100">
+                            <i class="fas fa-download"></i> Xuất Full Project
+                        </button>
+                        <label for="importFile" class="btn btn-sm btn-outline-dark w-100 mb-0">
+                            <i class="fas fa-upload"></i> Nhập File
+                        </label>
+                        <input type="file" id="importFile" hidden onchange="importProject(event)" accept=".json">
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="col-md-7">
-            <div class="card shadow-sm p-4">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="m-0">Kết quả SQL</h5>
-                    <button onclick="copySQL()" class="btn btn-sm btn-outline-secondary">Sao chép</button>
+        <div class="col-lg-9">
+            <ul class="nav nav-tabs border-0 mb-3">
+                <li class="nav-item">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#sqlPanel">
+                        <i class="fas fa-code me-1"></i> SQL Script
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#erdPanel">
+                        <i class="fas fa-project-diagram me-1"></i> Sơ đồ ERD
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="sqlPanel">
+                    <div id="sqlResult" class="sql-preview shadow-sm">-- Nhấn "Sinh SQL" để tạo mã nguồn...</div>
                 </div>
-                <textarea id="sqlResult" class="form-control bg-dark text-white p-3" rows="15" readonly></textarea>
+                <div class="tab-pane fade" id="erdPanel">
+                    <div class="mermaid-card shadow-sm">
+                        <div id="mermaidContainer">
+                            </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<footer class="bg-white border-top py-5 mt-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-4 text-center text-md-start mb-4 mb-md-0">
+                <h5 class="fw-bold text-primary mb-1">DB STUDENT HELPER</h5>
+                <p class="text-muted small mb-0">Phát triển bởi <strong>Thực (HUTECH IT)</strong></p>
+                <div class="mt-2">
+                    <a href="https://github.com/dauxuanthuc" target="_blank" class="text-dark me-3"><i class="fab fa-github fa-lg"></i></a>
+                    <a href="https://web.facebook.com/Dauxuanthuc12" target="_blank" class="text-primary me-3"><i class="fab fa-facebook fa-lg"></i></a>
+                    <a href="mailto:thangthuc31@gmail.com" class="text-danger"><i class="fas fa-envelope fa-lg"></i></a>
+                </div>
+            </div>
+
+            <div class="col-md-4 text-center mb-4 mb-md-0">
+                <button type="button" class="btn btn-outline-warning btn-sm fw-bold px-4 rounded-pill" data-bs-toggle="modal" data-bs-target="#donateModal">
+                    <i class="fas fa-coffee me-2"></i>Donate cho tác giả
+                </button>
+                <div class="mt-2">
+                    <a href="https://aicoachweb.web.app/AIcoach/landing.html" target="_blank" class="text-decoration-none small text-muted">
+                        <i class="fas fa-bug me-1"></i> Báo lỗi hoặc Gợi ý tính năng
+                    </a>
+                </div>
+            </div>
+
+            <div class="col-md-4 text-center text-md-end">
+                <div class="small text-muted">Trạng thái: <span class="badge bg-success">Hoạt động ổn định</span></div>
+                <div class="small text-muted mt-1">Phiên bản: 2.0.0 (Feb 2026)</div>
+                <div class="small text-muted mt-1">Hỗ trợ: Chrome, Edge, Safari</div>
+            </div>
+        </div>
+        <hr class="my-4">
+        <div class="text-center text-muted small">
+            Dự án mã nguồn mở phục vụ cộng đồng sinh viên IT Việt Nam.
+        </div>
+    </div>
+</footer>
+
+<div class="modal fade" id="donateModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h6 class="modal-title fw-bold">Cảm ơn sự ủng hộ của bạn!</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center pt-0">
+                <p class="small text-muted mb-3">Sự đóng góp của bạn giúp mình duy trì server và phát triển.</p>
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=0327841605" alt="MoMo QR" class="img-fluid rounded shadow-sm mb-3">
+                <div class="fw-bold text-primary">MOMO</div>
+                <div class="small">0327841605 (ĐẬU XUÂN THỰC)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editTableModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Chỉnh sửa bảng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editTableIndex">
+                <div class="mb-3">
+                    <label class="small fw-bold">Tên Bảng</label>
+                    <input type="text" id="editTableName" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="small fw-bold">Cột (Mỗi dòng 1 cột)</label>
+                    <textarea id="editTableCols" class="form-control" rows="5"></textarea>
+                    <small class="text-muted">Ví dụ: MaSV INT PRIMARY KEY</small>
+                </div>
+                <div class="mb-3">
+                    <label class="small fw-bold">Quan hệ ERD</label>
+                    <div class="border rounded p-3 bg-light">
+                        <div class="row g-2 mb-3">
+                            <div class="col-5">
+                                <select id="erdParentTable" class="form-select form-select-sm">
+                                    <option value="">Bảng cha</option>
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <select id="erdRelationType" class="form-select form-select-sm">
+                                    <option value="||--||">1-1</option>
+                                    <option value="||--o{">1-n</option>
+                                    <option value="}o--||">n-1</option>
+                                    <option value="}o--o{">n-n</option>
+                                </select>
+                            </div>
+                            <div class="col-4">
+                                <select id="erdChildTable" class="form-select form-select-sm">
+                                    <option value="">Bảng con</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-8">
+                                <input type="text" id="erdLabel" class="form-control form-control-sm" placeholder="Nhãn quan hệ (không bắt buộc)">
+                            </div>
+                            <div class="col-4">
+                                <button type="button" onclick="addErdRelation()" class="btn btn-sm btn-primary w-100">Thêm</button>
+                            </div>
+                        </div>
+                        <div id="erdRelationsList" class="small"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="saveTableChanges()" class="btn btn-primary">Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
