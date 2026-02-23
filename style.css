@@ -1,0 +1,26 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#sqlResult {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    resize: none;
+    border-radius: 8px;
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border: none;
+    transition: 0.3s;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+}

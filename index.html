@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB Student Helper - Tạo Database nhanh</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-primary">🎯 DB Student Helper</h1>
+        <p class="lead">Tạo SQL và dữ liệu mẫu trong 1 click (Dành cho SV HUTECH & IT)</p>
+    </div>
+
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card shadow-sm p-4">
+                <h5 class="mb-3">Cấu hình Database</h5>
+                <label class="form-label">Tên Database:</label>
+                <input type="text" id="dbName" class="form-control mb-3" placeholder="QL_SinhVien">
+
+                <label class="form-label">Chọn mẫu đồ án:</label>
+                <select id="template" class="form-select mb-4">
+                    <option value="student">Quản lý Sinh viên (Cơ bản)</option>
+                    <option value="sales">Quản lý Bán hàng</option>
+                    <option value="library">Quản lý Thư viện</option>
+                </select>
+
+                <button onclick="generateSQL()" class="btn btn-primary w-100 fw-bold">🚀 SINH SQL NGAY</button>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="card shadow-sm p-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="m-0">Kết quả SQL</h5>
+                    <button onclick="copySQL()" class="btn btn-sm btn-outline-secondary">Sao chép</button>
+                </div>
+                <textarea id="sqlResult" class="form-control bg-dark text-white p-3" rows="15" readonly></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
