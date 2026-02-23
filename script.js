@@ -307,10 +307,37 @@ function openEditModal(index) {
     const table = myProject[index];
     if (!table) return;
 
-    document.getElementById('editTableIndex').value = String(index);
-    document.getElementById('editTableName').value = table.name;
+    const editTableIndexInput = document.getElementById('editTableIndex');
+    const editTableNameInput = document.getElementById('editTableName');
+    const colNameInput = document.getElementById('colName');
+    const colTypeSelect = document.getElementById('colType');
+    const colIsPrimaryCheckbox = document.getElementById('colIsPrimary');
+    const parentSelect = document.getElementById('erdParentTable');
+    const childSelect = document.getElementById('erdChildTable');
+    const relationTypeSelect = document.getElementById('erdRelationType');
+    const erdLabelInput = document.getElementById('erdLabel');
+    const editTableModalEl = document.getElementById('editTableModal');
 
-    // Parse columns thành danh sách object
+    if (!editTableIndexInput || !editTableNameInput || !colNameInput || !colTypeSelect || !colIsPrimaryCheckbox || !parentSelect || !childSelect || !relationTypeSelect || !erdLabelInput || !editTableModalEl) {
+        console.error('Thiếu phần tử modal chỉnh sửa bảng. Có thể bản HTML/JS trên GitHub Pages chưa đồng bộ.', {
+            editTableIndexInput: !!editTableIndexInput,
+            editTableNameInput: !!editTableNameInput,
+            colNameInput: !!colNameInput,
+            colTypeSelect: !!colTypeSelect,
+            colIsPrimaryCheckbox: !!colIsPrimaryCheckbox,
+            parentSelect: !!parentSelect,
+            childSelect: !!childSelect,
+            relationTypeSelect: !!relationTypeSelect,
+            erdLabelInput: !!erdLabelInput,
+            editTableModalEl: !!editTableModalEl
+        });
+        alert('Không mở được form sửa bảng do trang chưa tải đủ UI. Hãy Ctrl+F5 để cập nhật bản mới trên GitHub Pages.');
+        return;
+    }
+
+    editTableIndexInput.value = String(index);
+    editTableNameInput.value = table.name;
+
     currentEditingColumns = table.cols.map(col => {
         const parsed = parseColumnDef(col);
         return {
@@ -320,64 +347,52 @@ function openEditModal(index) {
         };
     });
 
-    // Parse ERD string thành danh sách quan hệ
     currentEditingErdRelations = parseErdString(table.erd || '');
 
-    // Reset form nhập cột mới
-    document.getElementById('colName').value = '';
-    document.getElementById('colType').value = '';
-    document.getElementById('colIsPrimary').checked = false;
+    colNameInput.value = '';
+    colTypeSelect.value = '';
+    colIsPrimaryCheckbox.checked = false;
 
-    // Render danh sách cột hiện tại
     renderColumnsList();
 
-    // Populate dropdown với tất cả bảng (bao gồm bảng hiện tại)
     const tableNames = myProject.map(t => t.name);
-    const parentSelect = document.getElementById('erdParentTable');
-    const childSelect = document.getElementById('erdChildTable');
-    
     parentSelect.innerHTML = '<option value="">Bảng cha</option>';
     childSelect.innerHTML = '<option value="">Bảng con</option>';
-    
+
     tableNames.forEach(name => {
         const label = name === table.name ? `${name} (bảng hiện tại)` : name;
         parentSelect.innerHTML += `<option value="${name}">${label}</option>`;
         childSelect.innerHTML += `<option value="${name}">${label}</option>`;
     });
 
-    // Add event listeners for auto-sync
     parentSelect.removeEventListener('change', handleParentChange);
     childSelect.removeEventListener('change', handleChildChange);
-    
+
     function handleParentChange() {
         const selectedParent = parentSelect.value;
-        // Nếu chọn bảng khác bảng hiện tại + con rỗng → auto-set con = bảng hiện tại
         if (selectedParent && selectedParent !== table.name && !childSelect.value) {
             childSelect.value = table.name;
         }
     }
-    
+
     function handleChildChange() {
         const selectedChild = childSelect.value;
-        // Nếu chọn bảng khác bảng hiện tại + cha rỗng → auto-set cha = bảng hiện tại
         if (selectedChild && selectedChild !== table.name && !parentSelect.value) {
             parentSelect.value = table.name;
         }
     }
-    
+
     parentSelect.addEventListener('change', handleParentChange);
     childSelect.addEventListener('change', handleChildChange);
 
-    // Reset form ERD
-    document.getElementById('erdParentTable').value = '';
-    document.getElementById('erdRelationType').value = '||--o{';
-    document.getElementById('erdChildTable').value = '';
-    document.getElementById('erdLabel').value = '';
+    parentSelect.value = '';
+    relationTypeSelect.value = '||--o{';
+    childSelect.value = '';
+    erdLabelInput.value = '';
 
-    // Render danh sách quan hệ hiện tại
     renderErdRelationsList();
 
-    new bootstrap.Modal(document.getElementById('editTableModal')).show();
+    new bootstrap.Modal(editTableModalEl).show();
 }
 
 function saveTableChanges() {
@@ -568,9 +583,13 @@ function addColumnToTable() {
     currentEditingColumns.push({ name: colName, type: colType, isPrimary });
 
     // Reset form
-    document.getElementById('colName').value = '';
-    document.getElementById('colType').value = '';
-    document.getElementById('colIsPrimary').checked = false;
+    colNameInput.value = '';
+    colTypeSelect.value = '';
+    colIsPrimaryCheckbox.checked = false;
+    parentSelect.value = '';
+    relationTypeSelect.value = '||--o{';
+    childSelect.value = '';
+    erdLabelInput.value = '';
 
     renderColumnsList();
 }
