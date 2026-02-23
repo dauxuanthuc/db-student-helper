@@ -10,11 +10,11 @@ mermaid.initialize({
 });
 
 const fakeDataPool = {
-    ho: ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Phan", "Vũ", "Đặng", "Bùi"],
-    lot: ["Văn", "Thị", "Anh", "Minh", "Đức", "Duy", "Hoàng", "Ngọc", "Thanh"],
-    ten: ["Thực", "Hùng", "Lan", "Huệ", "Dũng", "Tuấn", "Linh", "Quân", "Thảo"],
-    sach: ["Lập trình C#", "Cơ sở dữ liệu", "Học làm giàu", "Đắc Nhân Tâm", "Kỹ thuật đồ họa", "Mạng máy tính"],
-    phim: ["Lật Mặt 7", "Mai", "Bố Già", "Avengers", "Oppenheimer", "Dune: Part Two"],
+    ho: ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Phan", "Vũ", "Đặng", "Bùi","Đỗ", "Hồ", "Ngô", "Dương", "Lý", "Đinh", "Trương", "Quách", "Đoàn", "Lâm", "Cao", "Phùng", "Mạc", "Vương", "Tô", "Lưu", "Hà", "Sơn", "Văn", "Đào", "Lê", "Trịnh", "Đặng", "Nguyễn", "Phạm", "Hoàng", "Phan", "Vũ", "Đặng", "Bùi","Đỗ", "Hồ", "Ngô", "Dương", "Lý", "Đinh", "Trương", "Quách", "Đoàn", "Lâm", "Cao", "Phùng"],
+    lot: ["Văn", "Thị", "Anh", "Minh", "Đức", "Duy", "Hoàng", "Ngọc", "Thanh", "Quang", "Hải", "Bảo", "Phương", "Tuấn", "Khánh", "Trung", "Đình", "Xuân", "Mạnh", "Thảo", "Quốc", "Gia", "Hương", "Tùng", "Diệp", "Trúc", "Phát", "Đăng", "Lâm", "Bình", "Huy", "Thu", "Thùy", "Quỳnh", "Cường", "Nhật", "Tấn", "Yến"],
+    ten: ["Thực", "Hùng", "Lan", "Huệ", "Dũng", "Tuấn", "Linh", "Quân", "Thảo", "Sơn", "Hương", "Phát", "Minh", "Anh", "Đức", "Duy", "Hoàng", "Ngọc", "Thanh", "Quang", "Hải", "Bảo", "Phương", "Tuấn", "Khánh", "Trung", "Đình", "Xuân", "Mạnh", "Thảo", "Quốc", "Gia", "Hương", "Tùng", "Diệp", "Trúc", "Phát", "Đăng", "Lâm", "Bình", "Huy", "Thu", "Thùy", "Quỳnh", "Cường", "Nhật", "Tấn", "Yến"],
+    sach: ["Lập trình C#", "Cơ sở dữ liệu", "Học làm giàu", "Đắc Nhân Tâm", "Kỹ thuật đồ họa", "Mạng máy tính", "Trí tuệ nhân tạo", "Học Python trong 24 giờ", "Lập trình web với JavaScript", "Thiết kế UX/UI", "Phân tích dữ liệu với R", "Lập trình di động với Flutter", "An ninh mạng cơ bản", "Học SQL từ A-Z", "Lập trình game với Unity", "Kỹ năng mềm cho lập trình viên", "Lập trình hướng đối tượng", "Kiến trúc phần mềm", "Lập trình song song và đa luồng"],
+    phim: ["Lật Mặt 7", "Mai", "Bố Già", "Avengers", "Oppenheimer", "Dune: Part Two", "The Batman", "Spider-Man"    , "The Flash", "John Wick: Chapter 4", "Mission: Impossible 7", "Guardians of the Galaxy Vol. 3", "The Marvels", "Barbie", "Wonka", "The Hunger Games: The Ballad of Songbirds & Snakes", "The Little Mermaid", "Killers of the Flower Moon", "Django Unchained", "Inception"],
     loaiPhong: ["Phòng Single", "Phòng Double", "Phòng VIP", "Phòng Deluxe", "Phòng Suite"],
     domain: ["@gmail.com", "@hutech.edu.vn", "@yahoo.com"],
     phonePrefix: ["090", "091", "098", "033", "035"]
@@ -88,6 +88,7 @@ let currentTemplateKey = 'student';
 let autoGenerateTimer = null;
 let isGenerating = false;
 let currentEditingErdRelations = [];
+let currentEditingColumns = [];
 
 const LOCAL_PROJECTS_KEY = 'db_helper_projects_v2';
 
@@ -232,7 +233,7 @@ function persistCurrentProject() {
     store[currentTemplateKey] = myProject.map(normalizeTable);
     saveProjectStore(store);
     renderTableList();
-    scheduleGenerate(120);
+    scheduleErdRender();
 }
 
 function scheduleGenerate(delay = 320) {
@@ -250,6 +251,24 @@ async function triggerGenerate() {
         await handleGenerate();
     } finally {
         isGenerating = false;
+    }
+}
+
+let erdRenderTimer = null;
+function scheduleErdRender(delay = 320) {
+    if (erdRenderTimer) clearTimeout(erdRenderTimer);
+    erdRenderTimer = setTimeout(() => {
+        erdRenderTimer = null;
+        renderErdOnly();
+    }, delay);
+}
+
+function renderErdOnly() {
+    const erdMarkup = buildMermaidERD({ tables: myProject });
+    pendingErdMarkup = erdMarkup;
+    const currentTab = document.querySelector('.tab-pane.active');
+    if (currentTab && currentTab.id === 'erdPanel') {
+        renderMermaidWhenVisible(erdMarkup);
     }
 }
 
@@ -290,12 +309,29 @@ function openEditModal(index) {
 
     document.getElementById('editTableIndex').value = String(index);
     document.getElementById('editTableName').value = table.name;
-    document.getElementById('editTableCols').value = table.cols.join('\n');
+
+    // Parse columns thành danh sách object
+    currentEditingColumns = table.cols.map(col => {
+        const parsed = parseColumnDef(col);
+        return {
+            name: parsed.name,
+            type: parsed.sqlType,
+            isPrimary: parsed.isPrimary
+        };
+    });
 
     // Parse ERD string thành danh sách quan hệ
     currentEditingErdRelations = parseErdString(table.erd || '');
 
-    // Populate dropdown với danh sách bảng khác
+    // Reset form nhập cột mới
+    document.getElementById('colName').value = '';
+    document.getElementById('colType').value = '';
+    document.getElementById('colIsPrimary').checked = false;
+
+    // Render danh sách cột hiện tại
+    renderColumnsList();
+
+    // Populate dropdown với tất cả bảng (bao gồm bảng hiện tại)
     const tableNames = myProject.map(t => t.name);
     const parentSelect = document.getElementById('erdParentTable');
     const childSelect = document.getElementById('erdChildTable');
@@ -304,11 +340,33 @@ function openEditModal(index) {
     childSelect.innerHTML = '<option value="">Bảng con</option>';
     
     tableNames.forEach(name => {
-        if (name !== table.name) {
-            parentSelect.innerHTML += `<option value="${name}">${name}</option>`;
-            childSelect.innerHTML += `<option value="${name}">${name}</option>`;
-        }
+        const label = name === table.name ? `${name} (bảng hiện tại)` : name;
+        parentSelect.innerHTML += `<option value="${name}">${label}</option>`;
+        childSelect.innerHTML += `<option value="${name}">${label}</option>`;
     });
+
+    // Add event listeners for auto-sync
+    parentSelect.removeEventListener('change', handleParentChange);
+    childSelect.removeEventListener('change', handleChildChange);
+    
+    function handleParentChange() {
+        const selectedParent = parentSelect.value;
+        // Nếu chọn bảng khác bảng hiện tại + con rỗng → auto-set con = bảng hiện tại
+        if (selectedParent && selectedParent !== table.name && !childSelect.value) {
+            childSelect.value = table.name;
+        }
+    }
+    
+    function handleChildChange() {
+        const selectedChild = childSelect.value;
+        // Nếu chọn bảng khác bảng hiện tại + cha rỗng → auto-set cha = bảng hiện tại
+        if (selectedChild && selectedChild !== table.name && !parentSelect.value) {
+            parentSelect.value = table.name;
+        }
+    }
+    
+    parentSelect.addEventListener('change', handleParentChange);
+    childSelect.addEventListener('change', handleChildChange);
 
     // Reset form ERD
     document.getElementById('erdParentTable').value = '';
@@ -328,10 +386,15 @@ function saveTableChanges() {
 
     const oldName = myProject[index].name;
     const name = document.getElementById('editTableName').value.trim();
-    const cols = document.getElementById('editTableCols').value
-        .split('\n')
-        .map(c => c.trim())
-        .filter(Boolean);
+    
+    // Convert currentEditingColumns thành array chuỗi định dạng
+    const cols = currentEditingColumns.map(col => {
+        let colDef = `${col.name} ${col.type}`;
+        if (col.isPrimary) {
+            colDef += ' PRIMARY KEY';
+        }
+        return colDef;
+    });
     
     // Convert danh sách quan hệ thành chuỗi ERD
     const erd = buildErdString(currentEditingErdRelations);
@@ -362,43 +425,61 @@ function resetToDefault() {
     delete store[currentTemplateKey];
     saveProjectStore(store);
     initProjectForTemplate(currentTemplateKey);
-    scheduleGenerate(80);
+    scheduleErdRender(80);
 }
 
 // Helper functions cho ERD Editor
 function parseErdString(erdStr) {
-    // Phân tích chuỗi ERD: "Table1 ||--o{ Table2 : label" hoặc "Table1 ||--o{ Table2"
+    // Phân tích chuỗi ERD: support cả JSON format và old string format
     const relations = [];
     if (!erdStr) return relations;
     
-    // Regex để match: tableName relationSymbol tableName : label (hoặc không có label)
-    const relationRegex = /(\w+)\s*([\|\-\{\}]+)\s*(\w+)(?:\s*:\s*([^|]+?))?(?=\s*$|(?=\w+\s*[\|\-]))/g;
-    let match;
-    
-    while ((match = relationRegex.exec(erdStr)) !== null) {
-        relations.push({
-            parent: match[1],
-            type: match[2],
-            child: match[3],
-            label: match[4] ? match[4].trim() : ''
-        });
+    // Try JSON format first
+    try {
+        const parsed = JSON.parse(erdStr);
+        if (Array.isArray(parsed)) {
+            // Sanitize mỗi relation: remove newlines từ tất cả fields
+            return parsed.map(rel => ({
+                parent: (rel.parent || '').replace(/\n/g, '').replace(/\r/g, '').trim(),
+                type: (rel.type || '').replace(/\n/g, '').replace(/\r/g, '').trim(),
+                child: (rel.child || '').replace(/\n/g, '').replace(/\r/g, '').trim(),
+                label: (rel.label || '').replace(/\n/g, ' ').replace(/\r/g, '').trim()
+            }));
+        }
+    } catch (e) {
+        // Not JSON, try old string format: "Table1 ||--o{ Table2 : label Table3 ||--o{ Table4 : label"
+        // Split by space-delimited relation symbols
+        const relationRegex = /(\w+)\s*([\|\-\{\}o]+)\s+(\w+)(?:\s*:\s*([^\w]+?))?(?=\s+\w+\s*[\|\-]|\s*$)/g;
+        let match;
+        while ((match = relationRegex.exec(erdStr)) !== null) {
+            relations.push({
+                parent: match[1].trim(),
+                type: match[2] ? match[2].trim() : '||--o{',
+                child: match[3].trim(),
+                label: match[4] ? match[4].trim() : ''
+            });
+        }
+        
+        if (relations.length > 0) {
+            return relations;
+        }
+        
+        console.warn('Could not parse ERD string:', erdStr);
     }
     return relations;
 }
 
 function buildErdString(relations) {
     if (!relations || relations.length === 0) return '';
-    return relations.map(r => {
-        const relStr = `${r.parent} ${r.type} ${r.child}`;
-        return r.label ? `${relStr} : ${r.label}` : relStr;
-    }).join(' ');
+    return JSON.stringify(relations);
 }
 
 function addErdRelation() {
+    const currentTableName = document.getElementById('editTableName').value.trim();
     const parent = document.getElementById('erdParentTable').value.trim();
     const type = document.getElementById('erdRelationType').value.trim();
     const child = document.getElementById('erdChildTable').value.trim();
-    const label = document.getElementById('erdLabel').value.trim();
+    const label = document.getElementById('erdLabel').value.trim().replace(/\n/g, ' ').replace(/\r/g, '');
     
     if (!parent || !child) {
         alert('Vui lòng chọn cả bảng cha và bảng con');
@@ -407,6 +488,12 @@ function addErdRelation() {
     
     if (parent === child) {
         alert('Bảng cha và bảng con không được trùng nhau');
+        return;
+    }
+    
+    // Validate: parent hoặc child phải là bảng hiện tại
+    if (parent !== currentTableName && child !== currentTableName) {
+        alert('Quan hệ phải liên quan tới bảng hiện tại (' + currentTableName + ')');
         return;
     }
     
@@ -451,6 +538,65 @@ function renderErdRelationsList() {
             <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2">
                 <span class="small"><strong>${rel.parent}</strong> <span class="text-muted">${typeDisplay}</span> <strong>${rel.child}</strong>${label}</span>
                 <button type="button" onclick="removeErdRelation(${idx})" class="btn btn-sm btn-outline-danger">Xóa</button>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+function addColumnToTable() {
+    const colName = document.getElementById('colName').value.trim();
+    const colType = document.getElementById('colType').value.trim();
+    const isPrimary = document.getElementById('colIsPrimary').checked;
+
+    if (!colName) {
+        alert('Vui lòng nhập tên cột');
+        return;
+    }
+
+    if (!colType) {
+        alert('Vui lòng chọn kiểu dữ liệu');
+        return;
+    }
+
+    // Kiểm tra trùng tên cột
+    if (currentEditingColumns.some(c => c.name === colName)) {
+        alert('Cột này đã tồn tại!');
+        return;
+    }
+
+    currentEditingColumns.push({ name: colName, type: colType, isPrimary });
+
+    // Reset form
+    document.getElementById('colName').value = '';
+    document.getElementById('colType').value = '';
+    document.getElementById('colIsPrimary').checked = false;
+
+    renderColumnsList();
+}
+
+function removeColumnFromTable(index) {
+    if (index >= 0 && index < currentEditingColumns.length) {
+        currentEditingColumns.splice(index, 1);
+        renderColumnsList();
+    }
+}
+
+function renderColumnsList() {
+    const container = document.getElementById('columnsList');
+
+    if (!currentEditingColumns || currentEditingColumns.length === 0) {
+        container.innerHTML = '<div class="text-muted text-center py-2">Chưa có cột nào</div>';
+        return;
+    }
+
+    let html = '<div class="text-muted small mb-2">Danh sách cột hiện tại:</div>';
+    currentEditingColumns.forEach((col, idx) => {
+        const pkBadge = col.isPrimary ? '<span class="badge bg-warning text-dark ms-2">PK</span>' : '';
+        html += `
+            <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                <span class="small"><strong>${col.name}</strong> <span class="text-muted">${col.type}</span>${pkBadge}</span>
+                <button type="button" onclick="removeColumnFromTable(${idx})" class="btn btn-sm btn-outline-danger">Xóa</button>
             </div>
         `;
     });
@@ -505,61 +651,149 @@ function importProject(event) {
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
-            const raw = JSON.parse(e.target.result);
-            const importedTables = Array.isArray(raw)
-                ? raw
-                : Array.isArray(raw?.tables)
-                    ? raw.tables
-                    : Array.isArray(raw?.schema)
-                        ? raw.schema
-                    : null;
+            const sqlContent = e.target.result;
+            const parsedTables = parseSqlScript(sqlContent);
 
-            if (!importedTables || !importedTables.length) {
-                alert('File JSON không hợp lệ hoặc không có bảng.');
+            if (!parsedTables || !parsedTables.length) {
+                alert('File SQL không hợp lệ hoặc không có CREATE TABLE nào.\nVui lòng upload file SQL với định dạng: CREATE TABLE TableName (...)');
                 fileInput.value = '';
                 return;
             }
 
-            const meta = raw?.metadata || null;
-            const importedTemplate = meta?.template;
-            const templateSelect = document.getElementById('template');
-            if (importedTemplate && templateSelect) {
-                const hasTemplate = [...templateSelect.options].some(option => option.value === importedTemplate);
-                if (hasTemplate) {
-                    templateSelect.value = importedTemplate;
-                    currentTemplateKey = importedTemplate;
-                }
-            }
-
-            if (meta?.dbName) {
-                document.getElementById('dbName').value = String(meta.dbName);
-            }
-            if (meta?.dbType) {
-                const dbTypeSelect = document.getElementById('dbType');
-                const hasDbType = [...dbTypeSelect.options].some(option => option.value === meta.dbType);
-                if (hasDbType) dbTypeSelect.value = meta.dbType;
-            }
-            if (meta?.rowCount !== undefined) {
-                const rowCount = Number(meta.rowCount);
-                if (Number.isFinite(rowCount) && rowCount > 0) {
-                    document.getElementById('rowCount').value = String(Math.floor(rowCount));
-                }
-            }
-
-            myProject = importedTables.map(normalizeTable);
+            myProject = parsedTables.map(normalizeTable);
             repairProjectReferences();
             persistCurrentProject();
-            scheduleGenerate(80);
-            const fallbackColumns = collectFallbackColumns(myProject);
-            alert(buildFallbackImportMessage(fallbackColumns));
-        } catch {
-            alert('File không hợp lệ!');
+            alert(`✓ Nhập thành công ${parsedTables.length} bảng từ file SQL!`);
+        } catch (err) {
+            alert('Lỗi khi đọc file SQL:\n' + err.message);
         } finally {
             fileInput.value = '';
         }
     };
 
     reader.readAsText(file, 'utf-8');
+}
+
+function parseSqlScript(sqlContent) {
+    const tables = [];
+    
+    // Find all CREATE TABLE statements (case-insensitive)
+    const createTableRegex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`\[\"]?(\w+)[`\]\"]?\s*\(([\s\S]*?)\);/gi;
+    let match;
+
+    while ((match = createTableRegex.exec(sqlContent)) !== null) {
+        const tableName = match[1].trim();
+        const columnsStr = match[2];
+
+        try {
+            const table = parseTableDefinition(tableName, columnsStr);
+            if (table) {
+                tables.push(table);
+            }
+        } catch (err) {
+            console.warn(`Lỗi parse bảng ${tableName}: ${err.message}`);
+        }
+    }
+
+    // Build ERD relationships from foreign keys
+    buildErdFromForeignKeys(tables);
+
+    return tables;
+}
+
+function parseTableDefinition(tableName, columnsStr) {
+    const cols = [];
+    let primaryKeyCol = '';
+    const lines = columnsStr.split(',');
+
+    for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+
+        // Skip constraint lines (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, etc.)
+        if (/^(PRIMARY\s+KEY|FOREIGN\s+KEY|UNIQUE|CHECK|CONSTRAINT|INDEX)\b/i.test(line)) {
+            // Extract PRIMARY KEY column if present
+            if (/^PRIMARY\s+KEY\s*\(\s*[`\"]?(\w+)[`\"]?\s*\)/i.test(line)) {
+                const pkMatch = line.match(/^PRIMARY\s+KEY\s*\(\s*[`\"]?(\w+)[`\"]?\s*\)/i);
+                if (pkMatch) primaryKeyCol = pkMatch[1];
+            }
+            continue;
+        }
+
+        // Parse column definition: ColumnName TYPE [constraints]
+        const colMatch = line.match(/^[`\"]?(\w+)[`\"]?\s+([A-Za-z]+(?:\([^\)]*\))?)\s*(.*?)$/i);
+        if (!colMatch) continue;
+
+        const colName = colMatch[1];
+        const colType = colMatch[2].toUpperCase();
+        const constraints = colMatch[3].toUpperCase();
+
+        // Build column definition string
+        let colDef = `${colName} ${colType}`;
+
+        // Check for PRIMARY KEY constraint in column definition
+        if (/PRIMARY\s+KEY/i.test(constraints)) {
+            colDef += ' PRIMARY KEY';
+            primaryKeyCol = colName;
+        }
+
+        // Check for REFERENCES (FK)
+        if (/REFERENCES/i.test(constraints)) {
+            const refMatch = constraints.match(/REFERENCES\s+[`\"]?(\w+)[`\"]?\s*\(\s*[`\"]?(\w+)[`\"]?\s*\)/i);
+            if (refMatch) {
+                colDef += ` REFERENCES ${refMatch[1]}(${refMatch[2]})`;
+            }
+        }
+
+        cols.push(colDef);
+    }
+
+    // If no columns parsed, return null
+    if (!cols.length) {
+        return null;
+    }
+
+    // Add PRIMARY KEY constraint as separate column if it's defined separately
+    if (primaryKeyCol && !cols.some(c => c.includes('PRIMARY KEY'))) {
+        const pkCol = cols.find(c => c.startsWith(primaryKeyCol + ' '));
+        if (pkCol) {
+            const idx = cols.indexOf(pkCol);
+            cols[idx] = pkCol + ' PRIMARY KEY';
+        }
+    }
+
+    return {
+        name: tableName,
+        cols: cols,
+        erd: ''
+    };
+}
+
+function buildErdFromForeignKeys(tables) {
+    const erdRelations = [];
+
+    for (const table of tables) {
+        for (const col of table.cols) {
+            const refMatch = col.match(/REFERENCES\s+(\w+)/i);
+            if (refMatch) {
+                const parentTable = refMatch[1];
+                // Only add if parent table exists
+                if (tables.some(t => t.name === parentTable)) {
+                    erdRelations.push({
+                        parent: parentTable,
+                        type: '||--o{',
+                        child: table.name,
+                        label: 'has'
+                    });
+                }
+            }
+        }
+    }
+
+    // Store all ERD relations in first table as JSON
+    if (erdRelations.length > 0 && tables.length > 0) {
+        tables[0].erd = JSON.stringify(erdRelations);
+    }
 }
 
 function parseColumnDef(colDef) {
@@ -763,6 +997,25 @@ function buildColumnValue({ tableMeta, column, rowIndex, runKey, tableOffset, ge
     }
 
     if (isStringType(column.sqlType) || !column.sqlType) {
+        // Kiểm tra pattern tên cột để sinh dữ liệu phù hợp
+        const colNameLower = column.name.toLowerCase();
+        
+        // Tên lớp/nhóm → sinh mã
+        if (/ten.*lop|ten.*nhom|ten.*group|class_name/i.test(column.name)) {
+            return `Lớp ${String.fromCharCode(65 + (rowIndex % 26))}${String(rowIndex).padStart(2, '0')}`;
+        }
+        
+        // Tên khoa/bộ phận → sinh mã
+        if (/ten.*khoa|ten.*bo_phan|ten.*department|dept_name|khoa/i.test(column.name)) {
+            const depts = ['CNTT', 'QTKD', 'NL', 'VH'];
+            return `Khoa ${random(depts)}`;
+        }
+        
+        // Tên phòng → sinh mã
+        if (/ten.*phong|ten.*room|room_name|phong/i.test(column.name)) {
+            return `Phòng ${random(['A', 'B', 'C', 'D'])}${String(rowIndex).padStart(3, '0')}`;
+        }
+        
         return randomByColumnName(column.name, rowIndex);
     }
 
@@ -855,8 +1108,35 @@ function buildMermaidERD(template) {
         markup += '    }\n';
     });
 
+    // Parse ERD relations từ table.erd field
+    template.tables.forEach(table => {
+        if (table.erd) {
+            const erdRelations = parseErdString(table.erd);
+            erdRelations.forEach(rel => {
+                if (tableMap.has(rel.parent) && tableMap.has(rel.child)) {
+                    const parentEntity = tableMap.get(rel.parent);
+                    const childEntity = tableMap.get(rel.child);
+                    
+                    // Label phải ASCII-only (Mermaid không support Unicode)
+                    // Nếu label có non-ASCII character (tiếng Việt), bỏ label
+                    let label = '';
+                    if (rel.label) {
+                        const cleanLabel = rel.label.replace(/\n/g, ' ').replace(/\r/g, '');
+                        // Kiểm tra xem có non-ASCII character không
+                        if (/^[\x00-\x7F]*$/.test(cleanLabel)) {
+                            label = ` : ${cleanLabel}`;
+                        }
+                        // Nếu có non-ASCII, bỏ label (không thêm error message, im lặng)
+                    }
+                    
+                    relationSet.add(`    ${parentEntity} ${rel.type} ${childEntity}${label}`);
+                }
+            });
+        }
+    });
+
     if (relationSet.size > 0) {
-        markup += '\n' + [...relationSet].join('\n') + '\n';
+        markup += '\n' + [...relationSet].join('\n');
     }
 
     return markup;
@@ -917,17 +1197,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const dbTypeSelect = document.getElementById('dbType');
     const rowCountInput = document.getElementById('rowCount');
     const templateSelect = document.getElementById('template');
+    const schoolSelect = document.getElementById('schoolSelect');
     const initialTemplate = templateSelect ? templateSelect.value : 'student';
     initProjectForTemplate(initialTemplate);
 
-    [dbNameInput, rowCountInput].forEach(el => {
-        if (!el) return;
-        el.addEventListener('input', () => scheduleGenerate());
-    });
-
-    if (dbTypeSelect) {
-        dbTypeSelect.addEventListener('change', () => scheduleGenerate());
-    }
+    // Note: dbName, rowCount, dbType inputs no longer trigger auto-generation
+    // Users must click "Sinh SQL & ERD" button to generate SQL with new settings
 
     if (templateSelect) {
         templateSelect.addEventListener('change', (event) => {
@@ -935,7 +1210,19 @@ document.addEventListener('DOMContentLoaded', () => {
             initProjectForTemplate(newTemplateKey);
             pendingErdMarkup = '';
             document.getElementById('mermaidContainer').innerHTML = '';
-            scheduleGenerate(80);
+            scheduleErdRender(80);
+        });
+    }
+
+    if (schoolSelect) {
+        schoolSelect.addEventListener('change', (event) => {
+            const school = event.target.value;
+            if (!school) return;
+            if (typeof window.gtag === 'function') {
+                window.gtag('event', 'school_select', {
+                    school_name: school
+                });
+            }
         });
     }
 
@@ -949,7 +1236,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 50);
     });
 
-    scheduleGenerate(80);
+    scheduleErdRender(80);
 });
 
 function copySQL() {
