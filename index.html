@@ -111,6 +111,11 @@
                             <i class="fas fa-image"></i> Chụp Ảnh ERD (.png)
                         </button>
                     </div>
+                    <div class="col-12">
+                        <button onclick="openScriptExplanation()" class="btn btn-outline-dark w-100 btn-sm">
+                            <i class="fas fa-lightbulb"></i> Giải thích Script
+                        </button>
+                    </div>
                 </div>
 
                 <hr class="my-3">
@@ -138,6 +143,20 @@
                         </label>
                         <input type="file" id="importFile" hidden onchange="importProject(event)" accept=".sql">
                     </div>
+                </div>
+
+                <div class="p-3 border rounded bg-light mt-3">
+                    <h6 class="text-uppercase fw-bold text-dark small mb-2">
+                        <i class="fas fa-comments me-2"></i>Query Builder
+                    </h6>
+                    <div class="small text-muted mb-2">
+                        Ví dụ: "Tôi muốn lấy danh sách sinh viên thuộc khoa CNTT"
+                    </div>
+                    <textarea id="queryChatInput" class="form-control form-control-sm mb-2" rows="3" placeholder="Nhập yêu cầu truy vấn..."></textarea>
+                    <button id="queryChatSend" class="btn btn-sm btn-dark w-100 mb-2">
+                        Tạo SQL
+                    </button>
+                    <div id="queryChatResult" class="small text-muted border rounded bg-white p-2" style="min-height: 60px;"></div>
                 </div>
             </div>
         </div>
@@ -248,6 +267,23 @@
                 <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=0327841605" alt="MoMo QR" class="img-fluid rounded shadow-sm mb-3">
                 <div class="fw-bold text-primary">MOMO</div>
                 <div class="small">0327841605 (ĐẬU XUÂN THỰC)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="scriptExplainModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Giải thích Script</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="scriptExplanationContent" class="small text-muted"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
             </div>
         </div>
     </div>

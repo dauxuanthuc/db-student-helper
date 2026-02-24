@@ -92,6 +92,286 @@ let currentEditingColumns = [];
 
 const LOCAL_PROJECTS_KEY = 'db_helper_projects_v2';
 
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function buildScriptExplanationHtml() {
+    if (!myProject.length) {
+        return '<div class="text-muted">Chưa có bảng nào để giải thích. Hãy tạo bảng trước.</div>';
+    }
+
+    const allRelations = myProject.flatMap(table => parseErdString(table.erd || ''));
+    const relationMap = allRelations.reduce((acc, rel) => {
+        if (!rel?.parent || !rel?.child) return acc;
+        if (!acc[rel.parent]) acc[rel.parent] = new Set();
+        if (!acc[rel.child]) acc[rel.child] = new Set();
+        acc[rel.parent].add(rel.child);
+        acc[rel.child].add(rel.parent);
+        return acc;
+    }, {});
+
+    const blocks = myProject.map(table => {
+        const cols = Array.isArray(table.cols) ? table.cols : [];
+        const parsedCols = cols.map(col => parseColumnDef(col));
+        const colNames = parsedCols.map(col => col.name).filter(Boolean);
+        const fkCols = parsedCols.filter(col => col.referenceTable);
+        const pkCols = parsedCols.filter(col => col.isPrimary);
+        const nonFkCols = parsedCols.filter(col => !col.referenceTable);
+        const linkedTables = relationMap[table.name] ? [...relationMap[table.name]] : [];
+        const isJoinTableByErd = fkCols.length >= 2 && linkedTables.length >= 2;
+        const isJoinTableByHeuristic = fkCols.length >= 2 && nonFkCols.length <= fkCols.length + 1;
+
+        const columnsText = colNames.length
+            ? colNames.map(name => escapeHtml(name)).join(', ')
+            : 'không có thuộc tính nào';
+
+        let fkText = '';
+        if (fkCols.length) {
+            const fkDetails = fkCols.map(col => `cột ${escapeHtml(col.name)} liên kết đến bảng ${escapeHtml(col.referenceTable)}`).join('; ');
+            fkText = ` Khóa ngoại: ${fkDetails}.`;
+        }
+
+        let pkText = '';
+        if (pkCols.length) {
+            const pkDetails = pkCols.map(col => escapeHtml(col.name)).join(', ');
+            pkText = ` Khóa chính: ${pkDetails}.`;
+        }
+
+        let joinText = '';
+        if (isJoinTableByErd) {
+            const joinTargets = linkedTables.map(name => escapeHtml(name)).join(' và ');
+            joinText = ` Theo ERD, bảng này là bảng trung gian để liên kết nhiều-nhiều giữa ${joinTargets}. Quan hệ nhiều-nhiều thường tạo từ bảng trung gian.`;
+        } else if (isJoinTableByHeuristic) {
+            const joinTargets = [...new Set(fkCols.map(col => col.referenceTable))]
+                .map(name => escapeHtml(name))
+                .join(' và ');
+            joinText = ` Bảng này có thể là bảng trung gian để liên kết nhiều-nhiều giữa ${joinTargets}. Quan hệ nhiều-nhiều thường tạo từ bảng trung gian.`;
+        }
+
+        return `
+            <div class="mb-3">
+                <div class="fw-bold text-dark">Bảng ${escapeHtml(table.name)}</div>
+                <div>Bảng này dùng để lưu trữ dữ liệu về ${escapeHtml(table.name)}.</div>
+                <div>Thuộc tính gồm: ${columnsText}.</div>
+                <div>${pkText}${fkText}${joinText}</div>
+            </div>
+        `;
+    });
+
+    return blocks.join('');
+}
+
+function openScriptExplanation() {
+    const container = document.getElementById('scriptExplanationContent');
+    if (!container) return;
+    container.innerHTML = buildScriptExplanationHtml();
+    const modalEl = document.getElementById('scriptExplainModal');
+    if (!modalEl) return;
+    new bootstrap.Modal(modalEl).show();
+}
+
+function normalizeQueryText(text) {
+    return String(text || '').toLowerCase();
+}
+
+function findTableByQuery(input) {
+    const lowered = normalizeQueryText(input);
+    return myProject.find(table => lowered.includes(table.name.toLowerCase()));
+}
+
+function findColumnByCandidates(table, candidates) {
+    if (!table) return null;
+    const cols = Array.isArray(table.cols) ? table.cols : [];
+    const parsedCols = cols.map(col => parseColumnDef(col));
+    for (const candidate of candidates) {
+        const match = parsedCols.find(col => col.name.toLowerCase() === candidate.toLowerCase());
+        if (match) return match.name;
+    }
+    return null;
+}
+
+function buildQueryFromChat(input) {
+    const raw = String(input || '').trim();
+    if (!raw) return 'Vui lòng nhập yêu cầu truy vấn.';
+    if (!myProject.length) return 'Chưa có bảng nào để tạo truy vấn.';
+
+    const table = findTableByQuery(raw) || myProject[0];
+    const dbType = document.getElementById('dbType')?.value || '';
+    const limitMatch = raw.match(/(?:top|limit|lấy|lay)\s+(\d+)/i);
+    const limitValue = limitMatch ? parseInt(limitMatch[1], 10) : null;
+    const selectClause = limitValue && /sql\s*server/i.test(dbType)
+        ? `SELECT TOP ${limitValue} *`
+        : 'SELECT *';
+    const limitClause = limitValue && !/sql\s*server/i.test(dbType)
+        ? ` LIMIT ${limitValue}`
+        : '';
+    const whereParts = [];
+
+    const filters = [
+        {
+            regex: /khoa\s+([A-Za-z0-9_]+)/i,
+            candidates: ['MaKhoa', 'TenKhoa'],
+            groupIndex: 1
+        },
+        {
+            regex: /(lop|lớp)\s+([A-Za-z0-9_]+)/i,
+            candidates: ['MaLop', 'TenLop'],
+            groupIndex: 2
+        },
+        {
+            regex: /(ten\s+khoa|tên\s+khoa)\s+['"]([^'"]+)['"]/i,
+            candidates: ['TenKhoa'],
+            groupIndex: 2
+        },
+        {
+            regex: /(ten\s+lop|tên\s+lớp)\s+['"]([^'"]+)['"]/i,
+            candidates: ['TenLop'],
+            groupIndex: 2
+        },
+        {
+            regex: /(ten\s+phong|tên\s+phòng)\s+['"]([^'"]+)['"]/i,
+            candidates: ['TenPhong'],
+            groupIndex: 2
+        },
+        {
+            regex: /(ho\s+ten|họ\s+tên|hoten)\s+['"]([^'"]+)['"]/i,
+            candidates: ['HoTen', 'Ten', 'TenSV', 'TenNV', 'TenKH'],
+            groupIndex: 2
+        },
+        {
+            regex: /(ho\s+ten|họ\s+tên|hoten)\s+([A-Za-z0-9À-ỹ_]+)/i,
+            candidates: ['HoTen', 'Ten', 'TenSV', 'TenNV', 'TenKH'],
+            groupIndex: 2
+        },
+        {
+            regex: /email\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/i,
+            candidates: ['Email'],
+            groupIndex: 1
+        },
+        {
+            regex: /(sdt|sđt|dien\s+thoai|điện\s+thoại|phone)\s+([0-9]{6,})/i,
+            candidates: ['SDT', 'SoDienThoai', 'Phone'],
+            groupIndex: 2
+        },
+        {
+            regex: /(gioi\s+tinh|giới\s+tính)\s+([A-Za-z0-9À-ỹ_]+)/i,
+            candidates: ['GioiTinh', 'Gender', 'Phai', 'Sex'],
+            groupIndex: 2
+        },
+        {
+            regex: /(trang\s+thai|trạng\s+thái|status)\s+([A-Za-z0-9À-ỹ_]+)/i,
+            candidates: ['TrangThai', 'Status', 'TinhTrang'],
+            groupIndex: 2
+        },
+        {
+            regex: /(nam\s+sinh|năm\s+sinh)\s+(\d{4})/i,
+            candidates: ['NamSinh', 'YearOfBirth', 'Nam'],
+            groupIndex: 2
+        },
+        {
+            regex: /(ngay|ngày)\s+([0-9]{1,2}[\/\-][0-9]{1,2}[\/\-][0-9]{2,4}|\d{4}-\d{2}-\d{2})/i,
+            candidates: ['NgaySinh', 'NgayDen', 'NgayMuon', 'NgayLap', 'Ngay'],
+            groupIndex: 2
+        },
+        {
+            regex: /(ma\s+sv|ma\s+sinh\s+vien|masv)\s+([A-Za-z0-9_]+)/i,
+            candidates: ['MaSV', 'MaSinhVien'],
+            groupIndex: 2
+        },
+        {
+            regex: /(ma\s+lop|malop)\s+([A-Za-z0-9_]+)/i,
+            candidates: ['MaLop'],
+            groupIndex: 2
+        },
+        {
+            regex: /(ma\s+khoa|makhoa)\s+([A-Za-z0-9_]+)/i,
+            candidates: ['MaKhoa'],
+            groupIndex: 2
+        },
+        {
+            regex: /(ma\s+phong|maphong)\s+([A-Za-z0-9_]+)/i,
+            candidates: ['MaPhong'],
+            groupIndex: 2
+        }
+    ];
+
+    filters.forEach(filter => {
+        const match = raw.match(filter.regex);
+        if (!match) return;
+        const value = match[filter.groupIndex];
+        const column = findColumnByCandidates(table, filter.candidates);
+        if (value && column) {
+            whereParts.push(`${column} = '${value}'`);
+        }
+    });
+
+    const scoreMatch = raw.match(/(diem|điểm)\s*([<>]=?)\s*(\d+(?:\.\d+)?)/i);
+    if (scoreMatch) {
+        const scoreColumn = findColumnByCandidates(table, ['Diem', 'DiemSo', 'DiemTB', 'Score', 'GPA']);
+        if (scoreColumn) {
+            whereParts.push(`${scoreColumn} ${scoreMatch[2]} ${scoreMatch[3]}`);
+        }
+    }
+
+    const priceRangeMatch = raw.match(/(gia|giá)\s*(tu|từ)\s*(\d+(?:\.\d+)?)\s*(den|đến)\s*(\d+(?:\.\d+)?)/i);
+    if (priceRangeMatch) {
+        const priceColumn = findColumnByCandidates(table, ['Gia', 'Price', 'GiaVe', 'GiaNgay']);
+        if (priceColumn) {
+            whereParts.push(`${priceColumn} BETWEEN ${priceRangeMatch[3]} AND ${priceRangeMatch[5]}`);
+        }
+    }
+
+    const priceCompareMatch = raw.match(/(gia|giá)\s*([<>]=?)\s*(\d+(?:\.\d+)?)/i);
+    if (priceCompareMatch) {
+        const priceColumn = findColumnByCandidates(table, ['Gia', 'Price', 'GiaVe', 'GiaNgay']);
+        if (priceColumn) {
+            whereParts.push(`${priceColumn} ${priceCompareMatch[2]} ${priceCompareMatch[3]}`);
+        }
+    }
+
+    let orderClause = '';
+    const descMatch = /(giam\s+dan|giảm\s+dần|cao\s+nhat|cao\s+nhất|lon\s+nhat|lớn\s+nhất)/i.test(raw);
+    const ascMatch = /(tang\s+dan|tăng\s+dần|thap\s+nhat|thấp\s+nhất|nho\s+nhat|nhỏ\s+nhất)/i.test(raw);
+
+    if (descMatch || ascMatch) {
+        const sortCandidates = [
+            { regex: /(diem|điểm)/i, columns: ['Diem', 'DiemSo', 'DiemTB', 'Score', 'GPA'] },
+            { regex: /(gia|giá)/i, columns: ['Gia', 'Price', 'GiaVe', 'GiaNgay'] },
+            { regex: /(ngay|ngày)/i, columns: ['NgaySinh', 'NgayDen', 'NgayMuon', 'NgayLap', 'Ngay'] },
+            { regex: /(ten|tên)/i, columns: ['Ten', 'HoTen', 'TenSV', 'TenNV', 'TenKH'] }
+        ];
+
+        let orderColumn = null;
+        for (const candidate of sortCandidates) {
+            if (!candidate.regex.test(raw)) continue;
+            orderColumn = findColumnByCandidates(table, candidate.columns);
+            if (orderColumn) break;
+        }
+
+        if (orderColumn) {
+            orderClause = ` ORDER BY ${orderColumn} ${descMatch ? 'DESC' : 'ASC'}`;
+        }
+    }
+
+    const whereClause = whereParts.length ? ` WHERE ${whereParts.join(' AND ')}` : '';
+    return `${selectClause} FROM ${table.name}${whereClause}${orderClause}${limitClause};`;
+}
+
+function handleQueryChat() {
+    const inputEl = document.getElementById('queryChatInput');
+    const resultEl = document.getElementById('queryChatResult');
+    if (!inputEl || !resultEl) return;
+
+    const sql = buildQueryFromChat(inputEl.value);
+    resultEl.textContent = sql;
+}
+
 function deepClone(value) {
     return JSON.parse(JSON.stringify(value));
 }
@@ -1217,6 +1497,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const rowCountInput = document.getElementById('rowCount');
     const templateSelect = document.getElementById('template');
     const schoolSelect = document.getElementById('schoolSelect');
+    const queryChatInput = document.getElementById('queryChatInput');
+    const queryChatSend = document.getElementById('queryChatSend');
     const initialTemplate = templateSelect ? templateSelect.value : 'student';
     initProjectForTemplate(initialTemplate);
 
@@ -1241,6 +1523,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.gtag('event', 'school_select', {
                     school_name: school
                 });
+            }
+        });
+    }
+
+    if (queryChatSend) {
+        queryChatSend.addEventListener('click', handleQueryChat);
+    }
+
+    if (queryChatInput) {
+        queryChatInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                handleQueryChat();
             }
         });
     }
