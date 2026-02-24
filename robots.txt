@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://dauxuanthuc.github.io/db-student-helper/sitemap.xml
